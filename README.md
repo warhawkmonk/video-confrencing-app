@@ -1,112 +1,125 @@
----
-title: Video Call
-emoji: "📹"
-colorFrom: red
-colorTo: orange
-tags:
-- streamlit
-- webrtc
-- video-call
-pinned: false
-short_description: A lightweight Streamlit video and audio calling prototype
----
+# Video Conferencing App
 
-# Video Call
+A lightweight video and audio conferencing prototype built with [Streamlit](https://streamlit.io/)
+and [`streamlit-webrtc`](https://github.com/whitphx/streamlit-webrtc). Each browser session receives
+a UUID that acts as its room identifier. The app captures camera frames and microphone audio, then
+uses files in `image_saver_folder` to exchange the latest available media with another session.
 
-A lightweight video and audio calling prototype built with **Streamlit**, **WebRTC**, and `aiortc`.
-The app captures media from the browser, assigns each session a unique room ID, and uses shared file
-storage to exchange the latest video frame and short audio clips between participants.
-
-> This is a prototype for experimentation and local or shared-storage deployments. It is not intended
-> to provide production-grade signaling, authentication, encryption, persistence, or call management.
+This project is intended for learning and local experimentation. It is not a production-ready
+conferencing service.
 
 ## Features
 
-- Browser camera and microphone access through `streamlit-webrtc`
+- Camera and microphone capture in the browser
 - Automatic UUID generation for each session
-- Room-style connection using a pasted participant ID
-- Live frame display controlled by a toggle
-- Approximately one-second audio chunks encoded as WAV
+- Participant connection by pasting a session ID
+- Toggle-controlled frame and audio publishing
+- Video frames saved as Base64-encoded PNG data
+- Audio saved as approximately one-second Base64-encoded WAV chunks
 
-## How It Works
+## Requirements
 
-1. Open the app in a browser and allow camera and microphone access.
-2. Copy the room ID shown in the left column.
-3. Share that ID with the other participant.
-4. The other participant pastes the ID into **Add room id**.
-5. Select **Toggle Frame Display** to begin writing and displaying media.
+- Python 3.9 or newer
+- A browser with camera and microphone support
+- Camera and microphone permissions for the app
+- A writable `image_saver_folder` directory
 
-Each session writes files named after its UUID into `image_saver_folder`:
+## Installation
 
-```text
-<room-id>.txt          latest video frame as Base64 PNG
-<room-id>_audio.txt    latest audio chunk as Base64 WAV
-```
+Create a virtual environment and install the dependencies:
 
-For two users to exchange media, both app sessions must be able to read and write the same
-`image_saver_folder`. A shared filesystem is therefore required when the app is deployed across
-multiple containers or machines.
-
-## Run Locally
-
-### 1. Create and activate a virtual environment
-
-Windows PowerShell:
+### Windows PowerShell
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
-Windows Command Prompt:
-
-```bat
-python -m venv .venv
-.venv\Scripts\activate.bat
-```
-
-### 2. Install dependencies
+### macOS or Linux
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
-### 3. Start Streamlit
+## Run the App
+
+From the project directory, start Streamlit:
 
 ```bash
 streamlit run app.py
 ```
 
-Open the local URL printed by Streamlit, usually `http://localhost:8501`.
+Open the URL printed in the terminal, usually `http://localhost:8501`.
 
-## Browser and Network Requirements
+## Connect Two Sessions
 
-- Camera and microphone permissions must be granted to the browser.
-- WebRTC generally requires HTTPS outside `localhost`.
-- The app uses Google’s public STUN server at `stun:stun.l.google.com:19302`.
-- Restrictive networks may require a TURN server; update the ICE configuration in `app.py` for that
-	scenario.
-- The deployed environment must provide writable storage for `image_saver_folder`.
+1. Open the app in two browser tabs or on two devices.
+2. Allow camera and microphone access when prompted.
+3. In the first session, copy the UUID shown in the left column.
+4. In the second session, paste that UUID into **Add room id**.
+5. Start the WebRTC stream in both sessions.
+6. Click **Toggle Frame Display** in the session that should publish and display media.
+
+The receiving session reads the sender's latest files from the shared storage directory. Both
+sessions must use the same `image_saver_folder`; this works automatically for local tabs, but a
+multi-machine deployment needs shared storage accessible to every app instance.
+
+## Data Exchange
+
+For a session ID such as `<session-id>`, the app writes:
+
+```text
+image_saver_folder/<session-id>.txt
+image_saver_folder/<session-id>_audio.txt
+```
+
+The first file contains the latest video frame as Base64 PNG data. The second contains the latest
+audio chunk as Base64 WAV data. Files are overwritten as new media arrives.
 
 ## Project Structure
 
 ```text
 .
-├── app.py                  Streamlit UI and WebRTC media processors
+├── app.py                  Streamlit UI and WebRTC processors
 ├── requirements.txt        Python dependencies
+├── README.md               Project documentation
 └── image_saver_folder/     Runtime media exchange files
 ```
 
-## Limitations and Security Notes
+## Troubleshooting
 
-- Room IDs are UUIDs, but there is no authentication or access control.
-- Media is stored as Base64 text files and should be treated as sensitive temporary data.
+**The camera or microphone does not start**
+
+- Check browser permissions for the app URL.
+- Confirm that another application is not using the camera or microphone.
+- Restart the WebRTC stream after changing permissions.
+
+**No remote media appears**
+
+- Confirm that the pasted ID is complete and matches the other session's displayed UUID.
+- Make sure both sessions can read and write the same `image_saver_folder`.
+- Click **Toggle Frame Display** after the WebRTC stream is active.
+
+**WebRTC fails outside localhost**
+
+Use HTTPS when hosting the app remotely. The app currently uses Google's public STUN server;
+networks with restrictive NAT or firewalls may also require a TURN server configuration in `app.py`.
+
+## Limitations and Security
+
+- UUIDs are identifiers, not authentication or access control.
+- Media is stored as readable Base64 text files and should be treated as sensitive.
 - Files are not automatically expired or deleted.
-- The current implementation exchanges the latest available frame and audio chunk rather than a
-	synchronized, continuous media stream.
-- Do not expose this prototype publicly without adding authenticated signaling, secure storage,
-	cleanup policies, and appropriate WebRTC infrastructure.
+- The implementation exchanges the latest frame and audio chunk, not a synchronized continuous call.
+- The current storage approach is not suitable for public or multi-tenant production use.
+
+Before deploying publicly, add authenticated signaling, encrypted and managed media storage, cleanup
+policies, TURN infrastructure, and a proper room lifecycle.
 
 ## License
 
